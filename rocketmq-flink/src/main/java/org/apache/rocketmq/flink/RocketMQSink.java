@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
+import java.util.UUID;
 
 import org.apache.commons.lang.Validate;
 import org.apache.flink.configuration.Configuration;
@@ -62,10 +63,22 @@ public class RocketMQSink<IN> extends RichSinkFunction<IN> implements Checkpoint
     private int batchSize = 1000;
     private List<Message> batchList;
 
+    private int messageDeliveryDelayLevel = RocketMQConfig.MSG_DELAY_LEVEL00;
+
     public RocketMQSink(KeyValueSerializationSchema<IN> schema, TopicSelector<IN> topicSelector, Properties props) {
         this.serializationSchema = schema;
         this.topicSelector = topicSelector;
         this.props = props;
+
+        if (this.props != null) {
+            this.messageDeliveryDelayLevel  = RocketMQUtils.getInteger(this.props, RocketMQConfig.MSG_DELAY_LEVEL,
+                    RocketMQConfig.MSG_DELAY_LEVEL00);
+            if (this.messageDeliveryDelayLevel  < RocketMQConfig.MSG_DELAY_LEVEL00) {
+                this.messageDeliveryDelayLevel  = RocketMQConfig.MSG_DELAY_LEVEL00;
+            } else if (this.messageDeliveryDelayLevel  > RocketMQConfig.MSG_DELAY_LEVEL18) {
+                this.messageDeliveryDelayLevel  = RocketMQConfig.MSG_DELAY_LEVEL18;
+            }
+        }
     }
 
     @Override
@@ -74,8 +87,8 @@ public class RocketMQSink<IN> extends RichSinkFunction<IN> implements Checkpoint
         Validate.notNull(topicSelector, "TopicSelector can not be null");
         Validate.notNull(serializationSchema, "KeyValueSerializationSchema can not be null");
 
-        producer = new DefaultMQProducer();
-        producer.setInstanceName(String.valueOf(getRuntimeContext().getIndexOfThisSubtask()));
+        producer = new DefaultMQProducer(RocketMQConfig.buildAclRPCHook(props));
+        producer.setInstanceName(String.valueOf(getRuntimeContext().getIndexOfThisSubtask()) + "_" + UUID.randomUUID());
         RocketMQConfig.buildProducerConfigs(props, producer);
 
         batchList = new LinkedList<>();
@@ -105,7 +118,6 @@ public class RocketMQSink<IN> extends RichSinkFunction<IN> implements Checkpoint
         }
 
         if (async) {
-            // async sending
             try {
                 producer.send(msg, new SendCallback() {
                     @Override
@@ -124,7 +136,6 @@ public class RocketMQSink<IN> extends RichSinkFunction<IN> implements Checkpoint
                 LOG.error("Async send message failure!", e);
             }
         } else {
-            // sync sending, will return a SendResult
             try {
                 SendResult result = producer.send(msg);
                 LOG.debug("Sync send message result: {}", result);
@@ -134,10 +145,9 @@ public class RocketMQSink<IN> extends RichSinkFunction<IN> implements Checkpoint
         }
     }
 
-    // Mapping: from storm tuple -> rocketmq Message
     private Message prepareMessage(IN input) {
         String topic = topicSelector.getTopic(input);
-        String tag = topicSelector.getTag(input) != null ? topicSelector.getTag(input) : "";
+        String tag = (tag = topicSelector.getTag(input)) != null ? tag : "";
 
         byte[] k = serializationSchema.serializeKey(input);
         String key = k != null ? new String(k, StandardCharsets.UTF_8) : "";
@@ -147,6 +157,9 @@ public class RocketMQSink<IN> extends RichSinkFunction<IN> implements Checkpoint
         Validate.notNull(value, "the message body is null");
 
         Message msg = new Message(topic, tag, key, value);
+        if (this.messageDeliveryDelayLevel > RocketMQConfig.MSG_DELAY_LEVEL00) {
+            msg.setDelayTimeLevel(this.messageDeliveryDelayLevel);
+        }
         return msg;
     }
 
@@ -168,7 +181,12 @@ public class RocketMQSink<IN> extends RichSinkFunction<IN> implements Checkpoint
     @Override
     public void close() throws Exception {
         if (producer != null) {
-            flushSync();
+            try {
+                flushSync();
+            } catch (Exception e) {
+                LOG.error("FlushSync failure!", e);
+            }
+            // make sure producer can be shutdown, thus current producerGroup will be unregistered
             producer.shutdown();
         }
     }
@@ -191,6 +209,6 @@ public class RocketMQSink<IN> extends RichSinkFunction<IN> implements Checkpoint
 
     @Override
     public void initializeState(FunctionInitializationContext context) throws Exception {
-        // nothing to do
+        // Nothing to do
     }
 }
