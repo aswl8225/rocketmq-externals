@@ -186,8 +186,6 @@ public class ConfigManagementServiceImpl implements ConfigManagementService {
         ConnectKeyValue config = new ConnectKeyValue();
         config.put(RuntimeConfigDefine.UPDATE_TIMESATMP, System.currentTimeMillis());
         config.put(RuntimeConfigDefine.CONFIG_DELETED, 1);
-        Map<String, ConnectKeyValue> connectorConfig = new HashMap<>();
-        connectorConfig.put(connectorName, config);
         List<ConnectKeyValue> taskConfigList = new ArrayList<>();
         taskConfigList.add(config);
 
@@ -324,5 +322,9 @@ public class ConfigManagementServiceImpl implements ConfigManagementService {
          * A worker online.
          */
         ONLINE_KEY
+    }
+
+    public Plugin getPlugin() {
+        return this.plugin;
     }
 }

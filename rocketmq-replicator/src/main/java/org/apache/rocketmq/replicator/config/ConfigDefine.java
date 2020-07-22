@@ -22,10 +22,12 @@ import java.util.Set;
 public class ConfigDefine {
 
     public static final String CONN_SOURCE_RMQ = "source-rocketmq";
+    public static final String CONN_SOURCE_CLUSTER = "source-cluster";
 
     public static final String CONN_STORE_TOPIC = "replicator-store-topic";
 
     public static final String CONN_TARGET_RMQ = "target-rocketmq";
+    public static final String CONN_TARGET_CLUSTER = "target-cluster";
 
     public static final String CONN_SOURCE_GROUP = "source-group";
 
@@ -33,20 +35,22 @@ public class ConfigDefine {
 
     public static final String CONN_TASK_DIVIDE_STRATEGY = "task-divide-strategy";
 
-    public static final String CONN_BROKER_NAME = "broker-name";
-
-    public static final String CONN_SOURCE_TOPIC = "source-topic";
-
     public static final String CONN_WHITE_LIST = "white-list";
 
     public static final String CONN_SOURCE_RECORD_CONVERTER = "source-record-converter";
 
     public static final String CONN_TASK_PARALLELISM = "task-parallelism";
 
+    public static final String CONN_TOPIC_RENAME_FMT = "topic.rename.format";
+
+    public static final String REFRESH_INTERVAL = "refresh.interval";
+
+    public static final String OFFSET_SYNC_TOPIC = "offset.sync.topic";
+
     /**
      * The required key for all configurations.
      */
-    public static final Set<String> REQUEST_CONFIG = new HashSet<String>(){
+    public static final Set<String> REQUEST_CONFIG = new HashSet<String>() {
         {
             add(CONN_SOURCE_RMQ);
             add(CONN_TARGET_RMQ);

@@ -17,12 +17,13 @@
 package org.apache.rocketmq.replicator.strategy;
 
 import io.openmessaging.KeyValue;
-import org.apache.rocketmq.common.message.MessageQueue;
+import java.util.Set;
 import org.apache.rocketmq.replicator.config.TaskDivideConfig;
 import java.util.List;
 import java.util.Map;
+import org.apache.rocketmq.replicator.config.TaskTopicInfo;
 
 public abstract class TaskDivideStrategy {
 
-    public abstract List<KeyValue> divide(Map<String, List<MessageQueue>> topicMap, TaskDivideConfig tdc);
+    public abstract List<KeyValue> divide(Map<String, Set<TaskTopicInfo>> topicMap, TaskDivideConfig tdc);
 }
